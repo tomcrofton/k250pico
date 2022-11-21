@@ -23,9 +23,9 @@ int main() {
         for (i=33;i<126;i++) {
             pio_sm_put_blocking(pio, sm, i);
             gpio_put(LED_PIN, 1);
-            sleep_us(100);
+            sleep_us(150);
             gpio_put(LED_PIN, 0);
-            sleep_ms(2);
+            sleep_ms(240);
         }
     }
 

@@ -1,0 +1,43 @@
+.program ssarx
+
+; read until we're at the sync point
+    SET Y, 0x16
+
+nosync:
+    WAIT 0 GPIO 1     ; pick a place to start
+    WAIT 1 GPIO 1 [1] ; clock is high so data wont change
+    IN pins, 1        ; read 1 bit into ISR
+    MOV OSR, ISR      ; copy so we can use OSR as a scratch reg
+    OUT null, 24      ; now osr has the top 8 bits of isr in 7..0
+    MOV X, OSR        ; need because we can only compare x&y
+    JMP X!=Y nosync   ; if we not in sync, go read another bit
+
+.wrap_target
+byteread:
+    SET X, 7          ; 8 bits per byte
+                      ; GPIO 1 is clock input
+bitloop:
+    WAIT 0 GPIO 1     ; clock low
+    WAIT 1 GPIO 1 [1] ; wait for clock high
+    IN pins, 1        ; add the bit
+    JMP X-- bitloop   ; add until 1 byte
+
+    IN null, 24       ; push the 8 bits down to the end
+    MOV X, ISR        ; load the ISR to x for comparison
+    JMP X!=Y sendit   ; if its not sync char send it
+    JMP byteread
+sendit:    
+    PUSH    
+.wrap
+
+% c-sdk {
+void ssarx_program_init(PIO pio, uint sm, uint offset, uint rxpin) {
+    pio_sm_set_consecutive_pindirs(pio, sm, rxpin, 1, false); //pio,sm,base,count,isout
+    pio_gpio_init(pio, rxpin);
+
+    pio_sm_config c = ssarx_program_get_default_config(offset);
+    sm_config_set_in_pins(&c, rxpin);
+    sm_config_set_clkdiv(&c,4.0); //5 is 40ns per instr
+    pio_sm_init(pio, sm, offset, &c);
+}
+%}

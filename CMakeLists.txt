@@ -22,6 +22,7 @@ add_subdirectory(blinky)
 add_subdirectory(serialtest)
 add_subdirectory(testoutput)
 add_subdirectory(testinput)
+add_subdirectory(k250interface)
 
 
 add_compile_options(-Wall
