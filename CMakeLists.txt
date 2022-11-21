@@ -21,6 +21,7 @@ pico_sdk_init()
 add_subdirectory(blinky)
 add_subdirectory(serialtest)
 add_subdirectory(testoutput)
+add_subdirectory(testinput)
 
 
 add_compile_options(-Wall

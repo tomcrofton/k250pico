@@ -1,0 +1,26 @@
+.program pioinput
+
+.wrap_target
+    SET X, 7          ; 8 bits per byte
+bitloop:
+    WAIT 1 GPIO 1     ; wait for clock high
+    IN pins, 1        ; add the bit
+    WAIT 0 GPIO 1     ; clock low
+    JMP X-- bitloop   ; add until 1 byte
+
+    IN null, 24       ; push the 8 bits down to the end
+    PUSH    
+.wrap
+
+% c-sdk {
+void pioinput_program_init(PIO pio, uint sm, uint offset, uint basepin) {
+    uint datapin=basepin;
+    pio_sm_set_consecutive_pindirs(pio, sm, datapin, 1, false); //pio,sm,base,count,isout
+    pio_gpio_init(pio, datapin);
+
+    pio_sm_config c = pioinput_program_get_default_config(offset);
+    sm_config_set_in_pins(&c, datapin);
+    sm_config_set_clkdiv(&c,4.0); //5 is 40ns per instr
+    pio_sm_init(pio, sm, offset, &c);
+}
+%}
