@@ -1,0 +1,35 @@
+; generate clock and data 
+
+.program pioout
+.side_set 1
+
+    set x,0x16       side 1      ; x is sync char and default for pull
+
+.wrap_target
+    pull noblock     side 1      ; set OSR from fifo or x if fifo is empty
+    set y, 7         side 1      ; 8 bits to write
+bitloop:
+    out pins, 1      side 0 [11]  ; clk low, send one bit from the osr to pin
+    jmp y-- bitloop  side 1 [11]  ; 5 instr are 200ns
+.wrap             
+
+% c-sdk {
+// this is a raw helper function for use by the user which sets up the GPIO output, and configures the SM to output on a particular pin
+
+void pioout_program_init(PIO pio, uint sm, uint offset, uint basepin) {
+    uint clockpin=basepin+1;
+    pio_sm_config c = pioout_program_get_default_config(offset);
+    sm_config_set_out_pins(&c, basepin, 2);
+    sm_config_set_sideset_pins(&c,clockpin);
+
+    uint32_t both_pins = (1u << basepin) | (1u << clockpin);
+    pio_sm_set_pins_with_mask(pio, sm, both_pins, both_pins);
+    pio_sm_set_pindirs_with_mask(pio, sm, both_pins, both_pins);
+
+    pio_gpio_init(pio, basepin);
+    pio_gpio_init(pio, clockpin);
+    
+    sm_config_set_clkdiv(&c,10.0); //5 is 40ns per instr
+    pio_sm_init(pio, sm, offset, &c);
+}
+%}

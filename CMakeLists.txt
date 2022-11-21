@@ -20,6 +20,7 @@ pico_sdk_init()
 # Add blink example
 add_subdirectory(blinky)
 add_subdirectory(serialtest)
+add_subdirectory(testoutput)
 
 
 add_compile_options(-Wall
