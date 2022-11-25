@@ -1,6 +1,7 @@
 add_executable(k250interface)
 
 pico_generate_pio_header(k250interface ${CMAKE_CURRENT_LIST_DIR}/ssarx.pio)
+pico_generate_pio_header(k250interface ${CMAKE_CURRENT_LIST_DIR}/ssatx.pio)
 
 target_sources(k250interface PRIVATE main.c)
 

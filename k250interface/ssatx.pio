@@ -1,0 +1,28 @@
+; generate clock and data 
+
+.program ssatx
+    SET X,0x16         ; x is sync char and default for pull
+
+.wrap_target
+    PULL noblock       ; set OSR from fifo or x if fifo is empty
+    SET Y, 7           ; 8 bits to write
+bitloop:
+    WAIT 1 GPIO 1      ; start with clock high
+    WAIT 0 GPIO 1 [1]  ; data change on clock hi to low 
+    OUT pins, 1        ; clk low, send one bit from the osr to pin
+    JMP Y-- bitloop    ; 5 instr are 200ns
+.wrap             
+
+% c-sdk {
+// this is a raw helper function for use by the user which sets up the GPIO output, and configures the SM to output on a particular pin
+
+void ssatx_program_init(PIO pio, uint sm, uint offset, uint txpin) {
+    pio_sm_set_consecutive_pindirs(pio, sm, txpin, 1, true); //pio,sm,base,count,isout
+    pio_gpio_init(pio, txpin);
+
+    pio_sm_config c = ssatx_program_get_default_config(offset);
+    sm_config_set_out_pins(&c, txpin, 1);
+    sm_config_set_clkdiv(&c,4.0); //5 is 40ns per instr
+    pio_sm_init(pio, sm, offset, &c);
+}
+%}
