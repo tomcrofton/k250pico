@@ -7,7 +7,7 @@ const uint LED_PIN = PICO_DEFAULT_LED_PIN;
 PIO pio;
 uint tx_sm;
 uint rx_sm;
-unsigned char packet[24];
+unsigned char packet[1024];
 
 unsigned char unescape(unsigned char c) {
    unsigned char result;
@@ -46,8 +46,39 @@ unsigned char nextChar() {
     return pio_sm_get_blocking(pio,rx_sm);
 }
 
+void lookForOK() {
+    //(K250 says OK) 10 06
+    unsigned char in1 = nextChar();
+    unsigned char in2 = nextChar();
+    if (in1==0x10&&in2==0x06) {
+        printf("OK<");
+    } else {
+        printf("ER %02x %02x <",in1,in2);
+    }
+}
+
+void sendBegin() {
+    pio_sm_clear_fifos(pio, rx_sm);     
+    pio_sm_put_blocking(pio, tx_sm, 0x10);
+    pio_sm_put_blocking(pio, tx_sm, 0x05);
+    lookForOK();
+}
+
+void sendPacket(unsigned char* pkt, int len) {
+    //wait for K250 to say it's ready
+    unsigned char in1 = nextChar();//10
+    unsigned char in2 = nextChar();//11
+    //10 02 00 04 00 10 30 00 06 00 1c
+    for (int i=0;i<len;i++) {
+        pio_sm_put_blocking(pio,tx_sm,pkt[i]);
+    }
+    pio_sm_clear_fifos(pio,rx_sm); //while still sending data, clear all rx data
+    lookForOK();
+}
+
 int getPacket(unsigned char* pkt) {
     //call for data
+    pio_sm_clear_fifos(pio, rx_sm);
     pio_sm_put_blocking(pio, tx_sm, 0x10);
     pio_sm_put_blocking(pio, tx_sm, 0x11);
 
@@ -77,9 +108,8 @@ int getPacket(unsigned char* pkt) {
     dataSize = (dataSize<<8)+x;
     
     dataSize+=2; // add on checksum
-    printf("s:%d\n",dataSize);
-    
-    if (dataSize>24) dataSize=20;
+
+    if (dataSize>512) dataSize=10; //something is wrong
 
     while (dataSize>0) {
         x = nextChar();
@@ -95,31 +125,10 @@ int getPacket(unsigned char* pkt) {
     return index;    
 }
 
-const uint32_t GET_CFG[] = {0x10,0x02,0x00,0x04,0x00,0x10,0x30,0x00,0x06,0x00,0x1c};
+unsigned char GET_CFG[] = {0x10,0x02,0x00,0x04,0x00,0x10,0x30,0x00,0x06,0x00,0x1c};
 void testConfig() {
-    //10 05 (start) 
-    pio_sm_put_blocking(pio, tx_sm, 0x10);
-    pio_sm_put_blocking(pio, tx_sm, 0x05);
-
-    //(K250 says OK start sending) 10 06 10 11
-    uint32_t in1 = nextChar();//10
-    uint32_t in2 = nextChar();//06
-    printf("%02x %02x\n",in1,in2);
-
-    //delay waiting for k250 to make rq
-    in1 = nextChar();//10
-    in2 = nextChar();//11
-    printf("%02x %02x\n",in1,in2);
-
-    //10 02 00 04 00 10 30 00 06 00 1c
-    for (int i=0;i<11;i++) {
-        pio_sm_put_blocking(pio,tx_sm,GET_CFG[i]);
-    }
-
-    //(K250 says OK) 10 06 
-    in1 = nextChar();
-    in2 = nextChar();
-    printf("%02x %02x\n",in1,in2);
+    sendBegin();
+    sendPacket(GET_CFG,11);
 
     sleep_ms(2);  //delay letting k250 prep
 
@@ -168,11 +177,16 @@ int main() {
                 printf("K250 Interface V1.0\n");
                 break;
 
+            case 'B':
+                sendBegin();
+                break;
+
             case 'R':
                 pio_sm_set_enabled(pio, rx_sm, false);
+                //pio_sm_restart(pio, rx_sm);
                 ssarx_program_init(pio, rx_sm, rx_offset, DINP_PIN);
                 pio_sm_set_enabled(pio, rx_sm, true);
-                printf("RESET<");
+                printf("OK<");
                 break;
 
             case 'c':
