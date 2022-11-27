@@ -125,6 +125,49 @@ int getPacket(unsigned char* pkt) {
     return index;    
 }
 
+int readPacket(unsigned char* pkt) {
+    int index=0;
+    int dataSize=0;
+
+    pkt[index++]=getchar(); //0x10
+    pkt[index++]=getchar(); //0x02
+    
+    unsigned char x = getchar(); //size H
+    pkt[index++] = x;    
+    if (x==0x10) {
+        x = getchar();
+        pkt[index++] = x;
+        x = unescape(x);
+    }
+    dataSize = x;
+
+    x = getchar(); //size L
+    pkt[index++] = x;    
+    if (x==0x10) {
+        x = getchar();
+        pkt[index++] = x;
+        x = unescape(x);
+    }
+    dataSize = (dataSize<<8)+x;
+    
+    dataSize+=2; // add on checksum
+
+    if (dataSize>512) dataSize=10; //something is wrong
+
+    while (dataSize>0) {
+        x = getchar();
+        pkt[index++] = x;
+        // don't count the escp char
+        if (x==0x10) {
+            x = getchar();
+            pkt[index++] = x;
+        } 
+        dataSize--;
+    }
+
+    return index;    
+}
+
 unsigned char GET_CFG[] = {0x10,0x02,0x00,0x04,0x00,0x10,0x30,0x00,0x06,0x00,0x1c};
 void testConfig() {
     sendBegin();
@@ -132,7 +175,7 @@ void testConfig() {
 
     sleep_ms(2);  //delay letting k250 prep
 
-    uint32_t index=getPacket(packet);
+    int index=getPacket(packet);
     printf("index: %d\n",index);
     for (int i=0;i<index;i++) {
         printf("%02x ",packet[i]);
@@ -169,6 +212,7 @@ int main() {
     pio_sm_set_enabled(pio, tx_sm, true);
 
     char inChar;
+    int len;
 
     while (true) {
          inChar = getchar();
@@ -177,11 +221,35 @@ int main() {
                 printf("K250 Interface V1.0\n");
                 break;
 
-            case 'B':
+            case 'G': //get packet
+                len=getPacket(packet);
+                for (int i=0;i<len;i++) {
+                    putchar(packet[i]);
+                }
+                break;
+
+            case 'B': //begin
                 sendBegin();
                 break;
 
-            case 'R':
+            case 'P': //send packet
+                len=readPacket(packet);
+                sendPacket(packet,len);
+                break;
+
+            case 'K': //OK
+                pio_sm_put_blocking(pio, tx_sm, 0x10);
+                pio_sm_put_blocking(pio, tx_sm, 0x06);
+                printf("OK<");
+                break;
+
+            case 'E': //err
+                pio_sm_put_blocking(pio, tx_sm, 0x10);
+                pio_sm_put_blocking(pio, tx_sm, 0x3f);
+                printf("OK<");
+                break;
+
+            case 'R': //reset
                 pio_sm_set_enabled(pio, rx_sm, false);
                 //pio_sm_restart(pio, rx_sm);
                 ssarx_program_init(pio, rx_sm, rx_offset, DINP_PIN);
@@ -189,7 +257,7 @@ int main() {
                 printf("OK<");
                 break;
 
-            case 'c':
+            case 'c': //debug config
                 testConfig();
                 break; 
 
