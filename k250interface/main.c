@@ -176,7 +176,6 @@ void testConfig() {
     sleep_ms(2);  //delay letting k250 prep
 
     int index=getPacket(packet);
-    printf("index: %d\n",index);
     for (int i=0;i<index;i++) {
         printf("%02x ",packet[i]);
     }
@@ -218,13 +217,13 @@ int main() {
          inChar = getchar();
          switch (inChar) {
             case '?':
-                printf("K250 Interface V1.0\n");
+                printf("K250 Interface V1.0<");
                 break;
 
             case 'G': //get packet
                 len=getPacket(packet);
                 for (int i=0;i<len;i++) {
-                    putchar(packet[i]);
+                    putchar_raw(packet[i]);
                 }
                 break;
 
@@ -252,6 +251,7 @@ int main() {
             case 'R': //reset
                 pio_sm_set_enabled(pio, rx_sm, false);
                 //pio_sm_restart(pio, rx_sm);
+                pio_sm_clear_fifos(pio, rx_sm);
                 ssarx_program_init(pio, rx_sm, rx_offset, DINP_PIN);
                 pio_sm_set_enabled(pio, rx_sm, true);
                 printf("OK<");
@@ -262,7 +262,7 @@ int main() {
                 break; 
 
             default:
-                printf("%c",inChar);
+                putchar_raw(inChar);
          }
 
 
