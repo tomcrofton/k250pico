@@ -122,6 +122,10 @@ int getPacket(unsigned char* pkt) {
         dataSize--;
     }
 
+    sleep_us(20);
+    pio_sm_put_blocking(pio, tx_sm, 0x10);
+    pio_sm_put_blocking(pio, tx_sm, 0x06);
+
     return index;    
 }
 
@@ -179,10 +183,6 @@ void testConfig() {
     for (int i=0;i<index;i++) {
         printf("%02x ",packet[i]);
     }
-
-    //send OK
-    pio_sm_put_blocking(pio, tx_sm, 0x10);
-    pio_sm_put_blocking(pio, tx_sm, 0x06);
 
 }
 
