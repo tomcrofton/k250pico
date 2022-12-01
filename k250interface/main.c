@@ -66,13 +66,12 @@ void sendBegin() {
 
 void sendPacket(unsigned char* pkt, int len) {
     //wait for K250 to say it's ready
+    pio_sm_clear_fifos(pio,rx_sm); //clear all rx data and wait for ready signal
     unsigned char in1 = nextChar();//10
     unsigned char in2 = nextChar();//11
-    //10 02 00 04 00 10 30 00 06 00 1c
     for (int i=0;i<len;i++) {
         pio_sm_put_blocking(pio,tx_sm,pkt[i]);
     }
-    pio_sm_clear_fifos(pio,rx_sm); //while still sending data, clear all rx data
     lookForOK();
 }
 
@@ -173,6 +172,7 @@ int readPacket(unsigned char* pkt) {
 }
 
 unsigned char GET_CFG[] = {0x10,0x02,0x00,0x04,0x00,0x10,0x30,0x00,0x06,0x00,0x1c};
+
 void testConfig() {
     sendBegin();
     sendPacket(GET_CFG,11);
@@ -180,6 +180,25 @@ void testConfig() {
     sleep_ms(2);  //delay letting k250 prep
 
     int index=getPacket(packet);
+    for (int i=0;i<index;i++) {
+        printf("%02x ",packet[i]);
+    }
+}
+
+unsigned char LOOP_START[] = {0x10,0x02,0x00,0x04,0x00,0x17,0x00,0x96,0x00,0xAD};
+void testLoop() {
+    sendBegin();
+    sendPacket(LOOP_START,10);
+    sleep_ms(5);  //delay letting k250 prep
+
+    int index=getPacket(packet);
+    sleep_ms(2);  //delay letting k250 prep
+    sendPacket(packet,index);
+    sleep_ms(2);  //delay letting k250 prep
+
+    pio_sm_put_blocking(pio, tx_sm, 0x10);
+    pio_sm_put_blocking(pio, tx_sm, 0x06);
+
     for (int i=0;i<index;i++) {
         printf("%02x ",packet[i]);
     }
@@ -259,6 +278,10 @@ int main() {
 
             case 'c': //debug config
                 testConfig();
+                break; 
+
+            case 'l': //debug config
+                testLoop();
                 break; 
 
             default:
