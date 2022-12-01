@@ -151,11 +151,9 @@ int readPacket(unsigned char* pkt) {
         pkt[index++] = x;
         x = unescape(x);
     }
-    dataSize = (dataSize<<8)+x;
-    
-    dataSize+=2; // add on checksum
 
-    if (dataSize>512) dataSize=10; //something is wrong
+    dataSize = (dataSize<<8)+x;    
+    dataSize+=2; // add on checksum
 
     while (dataSize>0) {
         x = getchar();
@@ -284,15 +282,15 @@ int main() {
                 testLoop();
                 break; 
 
+            case 'e': //echo packet
+                len=readPacket(packet);
+                for (int i=0;i<len;i++) {
+                    printf("%02x ",packet[i]);
+                }
+                break;
+
             default:
                 putchar_raw(inChar);
          }
-
-
-//        if (pio_sm_get_rx_fifo_level>0) {
-//            uint32_t data=pio_sm_get_blocking(pio, sm);
-//            printf("0x%08x\n", data);
-//        }
     }
-
 }
