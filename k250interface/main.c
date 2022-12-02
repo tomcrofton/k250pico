@@ -52,6 +52,7 @@ void lookForOK() {
     unsigned char in2 = nextChar();
     if (in1==0x10&&in2==0x06) {
         printf("OK<");
+        sleep_us(800); //k250 needs time to prep for next thing
     } else {
         printf("ER %02x %02x <",in1,in2);
     }
@@ -83,19 +84,19 @@ int getPacket(unsigned char* pkt) {
     //call for data
     pio_sm_clear_fifos(pio, rx_sm);
 
-    int tries=20;
+    int tries=20;  //20x15ms is 300ms
     while (tries>0) {
         tries--;
         pio_sm_put_blocking(pio, tx_sm, 0x10);
         pio_sm_put_blocking(pio, tx_sm, 0x11);
         //20 checks per ms = 50us delay
-        int timer=200; //at 200 it's 10ms
+        int timer=750; //750 x 20us is 15ms
         while (timer>0) {
             if (pio_sm_get_rx_fifo_level(pio,rx_sm)>0) {
                 timer=0;
                 tries=0;
             } else {
-                sleep_us(50);
+                sleep_us(20);
                 timer--;
             }
         } 
@@ -138,7 +139,7 @@ int getPacket(unsigned char* pkt) {
         dataSize--;
     }
 
-    sleep_us(20);
+    sleep_us(150);
     pio_sm_put_blocking(pio, tx_sm, 0x10);
     pio_sm_put_blocking(pio, tx_sm, 0x06);
 
@@ -192,7 +193,7 @@ void testConfig() {
     sendBegin();
     sendPacket(GET_CFG,11);
 
-    sleep_ms(2);  //delay letting k250 prep
+    sleep_ms(1);  //delay letting k250 prep
 
     int index=getPacket(packet);
     for (int i=0;i<index;i++) {
@@ -204,13 +205,12 @@ unsigned char LOOP_START[] = {0x10,0x02,0x00,0x04,0x00,0x17,0x01,0xE8,0x01,0x00}
 void testLoop() {
     sendBegin();
     sendPacket(LOOP_START,10);
+
     sleep_ms(1);  
 
     int index=getPacket(packet);
+    sleep_ms(8);
     sendPacket(packet,index);
-
-    pio_sm_put_blocking(pio, tx_sm, 0x10);
-    pio_sm_put_blocking(pio, tx_sm, 0x06);
 
     for (int i=0;i<index;i++) {
         printf("%02x ",packet[i]);
