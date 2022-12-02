@@ -76,15 +76,34 @@ void sendPacket(unsigned char* pkt, int len) {
 }
 
 int getPacket(unsigned char* pkt) {
-    //call for data
-    pio_sm_clear_fifos(pio, rx_sm);
-    pio_sm_put_blocking(pio, tx_sm, 0x10);
-    pio_sm_put_blocking(pio, tx_sm, 0x11);
-
     //read whole packet
     int index=0;
     int dataSize=0;
 
+    //call for data
+    pio_sm_clear_fifos(pio, rx_sm);
+
+    int tries=20;
+    while (tries>0) {
+        tries--;
+        pio_sm_put_blocking(pio, tx_sm, 0x10);
+        pio_sm_put_blocking(pio, tx_sm, 0x11);
+        //20 checks per ms = 50us delay
+        int timer=200; //at 200 it's 10ms
+        while (timer>0) {
+            if (pio_sm_get_rx_fifo_level(pio,rx_sm)>0) {
+                timer=0;
+                tries=0;
+            } else {
+                sleep_us(50);
+                timer--;
+            }
+        } 
+    }
+    if (pio_sm_get_rx_fifo_level(pio,rx_sm)==0) {
+        //TODO: fail condition handling
+        return 0;
+    }
     pkt[index++]=nextChar(); //0x10
     pkt[index++]=nextChar(); //0x02
     
@@ -107,8 +126,6 @@ int getPacket(unsigned char* pkt) {
     dataSize = (dataSize<<8)+x;
     
     dataSize+=2; // add on checksum
-
-    if (dataSize>512) dataSize=10; //something is wrong
 
     while (dataSize>0) {
         x = nextChar();
@@ -183,16 +200,14 @@ void testConfig() {
     }
 }
 
-unsigned char LOOP_START[] = {0x10,0x02,0x00,0x04,0x00,0x17,0x00,0x96,0x00,0xAD};
+unsigned char LOOP_START[] = {0x10,0x02,0x00,0x04,0x00,0x17,0x01,0xE8,0x01,0x00};
 void testLoop() {
     sendBegin();
     sendPacket(LOOP_START,10);
-    sleep_ms(5);  //delay letting k250 prep
+    sleep_ms(1);  
 
     int index=getPacket(packet);
-    sleep_ms(2);  //delay letting k250 prep
     sendPacket(packet,index);
-    sleep_ms(2);  //delay letting k250 prep
 
     pio_sm_put_blocking(pio, tx_sm, 0x10);
     pio_sm_put_blocking(pio, tx_sm, 0x06);
