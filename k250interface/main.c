@@ -7,7 +7,6 @@ const uint LED_PIN = PICO_DEFAULT_LED_PIN;
 PIO pio;
 uint tx_sm;
 uint rx_sm;
-unsigned char packet[1024];
 
 unsigned char unescape(unsigned char c) {
    unsigned char result;
@@ -76,12 +75,12 @@ void sendBegin() {
     lookForOK();
 }
 
-void sendPacket(unsigned char* pkt, int len) {
+void sendPacket(unsigned char* pkt, int length) {
     //wait for K250 to say it's ready
     pio_sm_clear_fifos(pio,rx_sm); //clear all rx data and wait for ready signal
     unsigned char in1 = nextChar();//10
     unsigned char in2 = nextChar();//11
-    for (int i=0;i<len;i++) {
+    for (int i=0;i<length;i++) {
         pio_sm_put_blocking(pio,tx_sm,pkt[i]);
     }
     lookForOK();
@@ -200,31 +199,31 @@ int readPacket(unsigned char* pkt) {
 
 unsigned char GET_CFG[] = {0x10,0x02,0x00,0x04,0x00,0x10,0x30,0x00,0x06,0x00,0x1c};
 
-void testConfig() {
+void testConfig(unsigned char* pkt) {
     sendBegin();
     sendPacket(GET_CFG,11);
 
     sleep_ms(1);  //delay letting k250 prep
 
-    int index=getPacket(packet);
+    int index=getPacket(pkt);
     for (int i=0;i<index;i++) {
-        printf("%02x ",packet[i]);
+        printf("%02x ",pkt[i]);
     }
 }
 
 unsigned char LOOP_START[] = {0x10,0x02,0x00,0x04,0x00,0x17,0x01,0xE8,0x01,0x00};
-void testLoop() {
+void testLoop(unsigned char* pkt) {
     sendBegin();
     sendPacket(LOOP_START,10);
 
     sleep_ms(1);  
 
-    int index=getPacket(packet);
+    int index=getPacket(pkt);
     sleep_ms(8);
-    sendPacket(packet,index);
+    sendPacket(pkt,index);
 
     for (int i=0;i<index;i++) {
-        printf("%02x ",packet[i]);
+        printf("%02x ",pkt[i]);
     }
 
 }
@@ -254,7 +253,8 @@ int main() {
     pio_sm_set_enabled(pio, tx_sm, true);
 
     char inChar;
-    int len;
+    int len=0;
+    unsigned char packet[1024];
 
     while (true) {
          inChar = getchar();
@@ -293,19 +293,25 @@ int main() {
 
             case 'R': //reset
                 pio_sm_set_enabled(pio, rx_sm, false);
-                //pio_sm_restart(pio, rx_sm);
+                pio_sm_set_enabled(pio, tx_sm, false);
+
                 pio_sm_clear_fifos(pio, rx_sm);
+                pio_sm_clear_fifos(pio, tx_sm);
+
                 ssarx_program_init(pio, rx_sm, rx_offset, DINP_PIN);
+                ssatx_program_init(pio, tx_sm, tx_offset, DOUT_PIN);
+
                 pio_sm_set_enabled(pio, rx_sm, true);
+                pio_sm_set_enabled(pio, tx_sm, true);
                 printf("OK<");
                 break;
 
             case 'c': //debug config
-                testConfig();
+                testConfig(packet);
                 break; 
 
             case 'l': //debug config
-                testLoop();
+                testLoop(packet);
                 break; 
 
             case 'e': //echo packet
