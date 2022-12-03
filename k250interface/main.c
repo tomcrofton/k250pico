@@ -47,7 +47,18 @@ unsigned char nextChar() {
 }
 
 void lookForOK() {
-    //(K250 says OK) 10 06
+    //(K250 says OK) 10 06 (usually happens quickly)
+    int timer=100;
+    while (timer>0) {
+        if (pio_sm_get_rx_fifo_level(pio,rx_sm)>0)
+            break;
+        timer--;
+        sleep_us(10);
+    }
+    if (timer<1) {
+        printf("Timeout<");
+        return;
+    }
     unsigned char in1 = nextChar();
     unsigned char in2 = nextChar();
     if (in1==0x10&&in2==0x06) {
