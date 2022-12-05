@@ -211,21 +211,10 @@ void testConfig(unsigned char* pkt) {
     }
 }
 
-unsigned char LOOP_START[] = {0x10,0x02,0x00,0x04,0x00,0x17,0x01,0xE8,0x01,0x00};
 void testLoop(unsigned char* pkt) {
-    sendBegin();
-    sendPacket(LOOP_START,10);
-
-    sleep_ms(1);  
-
     int index=getPacket(pkt);
-    sleep_ms(8);
+    sleep_ms(2);
     sendPacket(pkt,index);
-
-    for (int i=0;i<index;i++) {
-        printf("%02x ",pkt[i]);
-    }
-
 }
 
 int main() {
