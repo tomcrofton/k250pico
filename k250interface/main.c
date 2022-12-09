@@ -281,6 +281,7 @@ int main() {
                 break;
 
             case 'R': //reset
+                gpio_put(LED_PIN,1);
                 pio_sm_set_enabled(pio, rx_sm, false);
                 pio_sm_set_enabled(pio, tx_sm, false);
 
@@ -292,6 +293,7 @@ int main() {
 
                 pio_sm_set_enabled(pio, rx_sm, true);
                 pio_sm_set_enabled(pio, tx_sm, true);
+                gpio_put(LED_PIN,0);
                 printf("OK<");
                 break;
 

@@ -27,7 +27,7 @@ bitloop:
     JMP X!=Y sendit   ; if its not sync char send it
     JMP byteread
 sendit:    
-    PUSH    
+    PUSH noblock
 .wrap
 
 % c-sdk {
